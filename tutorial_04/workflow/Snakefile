@@ -1,0 +1,107 @@
+workdir: "/homes/lrmeulenkamp/data_processing/DataProcessing/tutorial_04/"
+datadir = "data/"
+
+
+rule all:
+      input:
+        "results/out.vcf"
+
+rule bwa_index:
+    """Create a BWA index in the genomic reference"""
+    input:
+        datadir + "reference.fa"
+    output:
+        touch("bwa_index.done")
+    shell:
+        "bwa index {input}"
+
+rule bwa_allign1:
+    input:
+        check = "bwa_index.done",
+        gen = datadir + "reference.fa",
+        reads = datadir + "A.txt"
+    output:
+        "temp/out.sai"
+    shell:
+        "bwa aln -I -t 8 {input.gen} {input.reads} > {output}"
+
+rule bwa_allign2:
+    input:
+        gen = datadir + "reference.fa",
+        allign = "temp/out.sai",
+        reads = datadir + "A.txt"
+    output:
+        "alligned/out.sam"
+    shell:
+      "bwa samse {input.gen} {input.allign} {input.reads} > {output}"
+      
+rule sam_convert:
+    input:
+        "alligned/out.sam"
+    output:
+          "temp/out.bam"
+    shell:
+        "samtools view -S -b {input} > {output}"
+
+rule sam_sort:
+      input:
+          "temp/out.bam"
+      output:
+          "sorted/out.sorted.bam"
+      shell:
+          "samtools sort {input} -o {output}"
+
+rule picard_duplicates:
+      input:
+        "sorted/out.sorted.bam"
+      output:
+          "filtered/out.dedupe.bam"
+      shell:
+          "java -jar picard/build/libs/picard.jar MarkDuplicates \
+                            MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=1000\
+                            METRICS_FILE=out.metrics \
+                            REMOVE_DUPLICATES=true \
+                            ASSUME_SORTED=true  \
+                            VALIDATION_STRINGENCY=LENIENT \
+                            INPUT={input} \
+                            OUTPUT={output}"
+
+rule sam_index:
+      input:
+          "filtered/out.dedupe.bam"
+      output:
+          touch("sam_index.done")
+      shell:
+         "samtools index {input}"
+         
+
+rule sam_to_vcf:
+        input:
+            ref = datadir + "reference.fa",
+            bam = "filtered/out.dedupe.bam"
+        output:
+            "results/out.vcf"
+        shell:
+            "samtools mpileup -uf {input.ref} {input.bam} | bcftools view -> {output}"
+          
+
+
+
+
+
+      
+      
+
+
+
+
+        
+
+
+
+
+
+
+
+
+

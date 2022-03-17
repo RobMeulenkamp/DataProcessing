@@ -1,0 +1,15 @@
+datadir = 'data/'
+
+rule all:
+    """ final rule """
+    input: 'results/heatmap.jpg'
+
+
+rule make_histogram:
+    """ rule that creates heatmap from gene expressions data of yeast"""
+    input:
+        datadir + 'gene_ex.csv'
+    output:
+         'results/heatmap.jpg'
+    shell:
+        "Rscript workflow/heatmapper.R {input} {output}"
